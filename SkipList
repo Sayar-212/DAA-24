@@ -1,0 +1,161 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <limits.h>
+#define Level 20
+bool found = false;
+typedef struct Node {
+    int val;
+    struct Node** f;
+} Node;
+typedef struct SkipList {
+    int level;
+    Node* header;
+} SkipList;
+Node* createNode(int val, int level) {
+    Node* newNode = (Node*)malloc(sizeof(Node));
+    newNode->val = val;
+    newNode->f = (Node**)malloc(sizeof(Node*) * (level + 1));
+    return newNode;
+}
+SkipList* createSkip() {
+    SkipList* list = (SkipList*)malloc(sizeof(SkipList));
+    list->level = 0;
+    list->header = createNode(INT_MIN, Level);
+    for (int i = 0; i <= Level; ++i) {
+        list->header->f[i] = NULL;
+    }
+    return list;
+}
+int randomLevel() {
+    int level = 0;
+    while (rand() < RAND_MAX / 2 && level < Level) {
+        level++;
+    }
+    return level;
+}
+void insert(SkipList* list, int val) {
+    Node* update[Level + 1];
+    Node* current = list->header;
+    for (int i = list->level; i >= 0; --i) {
+        while (current->f[i] != NULL && current->f[i]->val < val) {
+            current = current->f[i];
+        }
+        update[i] = current;
+    }
+    current = current->f[0];
+    if (current == NULL || current->val != val) {
+        int newLevel = randomLevel();
+        if (newLevel > list->level) {
+            for (int i = list->level + 1; i <= newLevel; ++i) {
+                update[i] = list->header;
+            }
+            list->level = newLevel;
+            if (newLevel > Level) {
+                printf("Overflow: Skip List level exceeded maximum level\n");
+                return;
+            }
+        }
+        Node* newNode = createNode(val, newLevel);
+        for (int i = 0; i <= newLevel; ++i) {
+            newNode->f[i] = update[i]->f[i];
+            update[i]->f[i] = newNode;
+        }
+    }
+}
+bool search(SkipList* list, int val) {
+    Node* current = list->header;
+    for (int i = list->level; i >= 0; --i) {
+        while (current->f[i] != NULL && current->f[i]->val < val) {
+            current = current->f[i];
+        }
+    }
+    current = current->f[0];
+    return current != NULL && current->val == val;
+}
+void deleteValue(SkipList* list, int val) {
+    Node* update[Level + 1];
+    bool found = false;
+    Node* current = list->header;
+    for (int i = list->level; i >= 0; --i) {
+        while (current->f[i] != NULL && current->f[i]->val < val) {
+            current = current->f[i];
+        }
+        update[i] = current;
+    }
+    current = current->f[0];
+    if (current != NULL && current->val == val) {
+        found = true;
+        for (int i = 0; i <= list->level; ++i) {
+            if (update[i]->f[i] != current)
+                break;
+            update[i]->f[i] = current->f[i];
+        }
+        free(current->f);
+        free(current);
+        while (list->level > 0 && list->header->f[list->level] == NULL) {
+            printf("Skip List level decreased\n");
+            list->level--;
+        }
+        printf("Value %d deleted from the Skip List\n", val);
+    } else {
+        printf("Value %d not found in the Skip List\n", val);
+    }
+}
+void displayBottomUp(SkipList* list) {
+    printf("Skip List (Bottom-Up):\n");
+    for (int i = list->level; i >= 0; --i) {
+        Node* node = list->header->f[i];
+        printf("Level %d: ", i);
+        while (node != NULL) {
+            printf("%d ", node->val);
+            node = node->f[i];
+        }
+        printf("\n");
+    }
+}
+int main() {
+    SkipList* list = createSkip();
+    int choice, value;
+    bool running = true;
+    while (running) {
+        printf("\nMenu:\n");
+        printf("1. Insert\n");
+        printf("2. Delete\n");
+        printf("3. Search\n");
+        printf("4. Exit\n");
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+        switch (choice) {
+        case 1:
+            printf("Enter value to insert: ");
+            scanf("%d", &value);
+            insert(list, value);
+            break;
+        case 2:
+            if (list->header->f[0] == NULL) {
+                printf("Underflow Condition: Skip List is empty\n");
+            } else {
+                printf("Enter value to delete: ");
+                scanf("%d", &value);
+                deleteValue(list, value);
+            }
+            break;
+        case 3:
+            printf("Enter value to search: ");
+            scanf("%d", &value);
+            if (search(list, value))
+                printf("Value %d found in the Skip List\n", value);
+            else
+                printf("Value %d not found in the Skip List\n", value);
+            break;
+        case 4:
+            running = false;
+            break;
+        default:
+            printf("Invalid choice. Please enter a valid option.\n");
+        }
+        displayBottomUp(list);
+    }
+    return 0;
+}
