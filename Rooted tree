@@ -1,0 +1,84 @@
+#include <stdio.h>
+#include <stdlib.h>
+struct Node {
+    int data;
+    struct Node *parent;
+    int rank;
+};
+struct Node* createNode(int data) {
+    struct Node* node = (struct Node*)malloc(sizeof(struct Node));
+    node->data = data;
+    node->parent = node;
+    node->rank = 0;
+    return node;
+}
+struct Node* find(struct Node* node) {
+    if (node != node->parent) {
+        node->parent = find(node->parent);
+    }
+    return node->parent;
+}
+void unionRank(struct Node* x, struct Node* y) {
+    struct Node* rootX = find(x);
+    struct Node* rootY = find(y);
+    if (rootX == rootY) {
+        return;
+    }
+    if (rootX->rank < rootY->rank) {
+        rootX->parent = rootY;
+    } else if (rootX->rank > rootY->rank) {
+        rootY->parent = rootX;
+    } else {
+        rootY->parent = rootX;
+        rootX->rank++;
+    }
+}
+int main() {
+    int V = 13;
+    struct Node* nodes[V];
+    for (int i = 0; i < V; i++) {
+        nodes[i] = createNode(i + 1);
+    }
+    FILE *fp = fopen("graph.txt", "r");
+    if (fp == NULL) {
+        printf("Error opening file!\n");
+        return 1;
+    }
+    int u, v;
+    while (fscanf(fp, "%d %d", &u, &v) != EOF) {
+        unionRank(nodes[u - 1], nodes[v - 1]);
+    }
+    fclose(fp);
+    int component_map[V];
+    for (int i = 0; i < V; i++) {
+        component_map[i] = find(nodes[i])->data;
+    }
+    int component_count = 0;
+    for (int i = 0; i < V; i++) {
+        component_count = component_map[i] > component_count ? component_map[i] : component_count;
+    }
+    int components[component_count];
+    for (int i = 0; i < component_count; i++) {
+        components[i] = 0; 
+    }
+    for (int i = 0; i < V; i++) {
+        components[component_map[i] - 1]++;
+    }
+    printf("Connected components:\n");
+    for (int i = 0; i < component_count; i++) {
+        if (components[i] > 0) { 
+            printf("[");
+            for (int j = 0; j < V; j++) {
+                if (components[i] > 0 && component_map[j] == i + 1) {
+                    printf("%d ", j + 1);
+                    components[i]--; 
+                }
+            }
+            printf("]\n");
+        }
+    }
+    for (int i = 0; i < V; i++) {
+        free(nodes[i]);
+    }
+    return 0;
+}
