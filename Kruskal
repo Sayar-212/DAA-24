@@ -1,0 +1,186 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct header {
+    struct object *head, *tail;
+    int size;
+} header;
+
+typedef struct object {
+    struct object *next;
+    int data;
+    header *rep;
+} object;
+
+typedef struct {
+    int v1, v2, w;
+} edge;
+
+header *makeSet(int data) {
+    header *Header = (header *)malloc(sizeof(header));
+    Header->head = (object *)malloc(sizeof(object));
+    Header->tail = (object *)malloc(sizeof(object));
+    Header->size = 1;
+
+    Header->head->data = data;
+    Header->head->next = NULL;
+    Header->head->rep = Header;
+
+    Header->tail = Header->head;
+    return Header;
+}
+
+void unionx(header *rep1, header *rep2) {
+    if (rep1->head->rep == rep2->head->rep)
+        return;
+    header *Rep1 = rep1->head->rep;
+    header *Rep2 = rep2->head->rep;
+    if (Rep1->size > Rep2->size) {
+        object *temp = Rep2->head, *prev;
+        while (temp) {
+            prev = temp;
+            temp->rep = Rep1;
+            temp = temp->next;
+        }
+
+        Rep1->tail->next = Rep2->head;
+        Rep1->tail = prev;
+        Rep1->size += Rep2->size;
+        return;
+    }
+    object *temp = Rep1->head, *prev;
+    while (temp) {
+        prev = temp;
+        temp->rep = Rep2;
+        temp = temp->next;
+    }
+
+    Rep2->tail->next = Rep1->head;
+    Rep2->tail = prev;
+    Rep2->size += Rep1->size;
+}
+
+void print(edge *m, int n, int totalWeight) {
+    printf("Minimum Spanning Tree Edges and Weights:\n");
+    for (int i = 0; i < n; i++) {
+        printf("(%d, %d) - weight: %d\n", m[i].v1, m[i].v2, m[i].w);
+    }
+    printf("Total Weight of MST: %d\n", totalWeight);
+}
+
+void merge(edge *array, int low, int mid, int high) {
+    int i = low, j = mid + 1, n = low;
+    edge f[high + 1];
+
+    while ((i <= mid) && (j <= high)) {
+        if (array[i].w > array[j].w) {
+            f[n] = array[j];
+            j++;
+        } else {
+            f[n] = array[i];
+            i++;
+        }
+        n++;
+    }
+
+    while (i <= mid) {
+        f[n] = array[i];
+        i++;
+        n++;
+    }
+
+    while (j <= high) {
+        f[n] = array[j];
+        j++;
+        n++;
+    }
+
+    for (n = low; n <= high; n++)
+        array[n] = f[n];
+}
+
+void mergesort(edge *array, int low, int high) {
+    int mid;
+    if (low < high) {
+        mid = (high + low) / 2;
+        mergesort(array, low, mid);
+        mergesort(array, mid + 1, high);
+        merge(array, low, mid, high);
+    }
+}
+
+int main() {
+    FILE *file = fopen("graph.txt", "r");
+    if (file == NULL) {
+        fprintf(stderr, "Error opening the file.\n");
+        return 1;
+    }
+
+    int n = 0; 
+    int v1, v2, w;
+    while (fscanf(file, "%d %d %d", &v1, &v2, &w) == 3) {
+        n++;
+    }
+    fclose(file);
+
+    file = fopen("graph.txt", "r");
+    if (file == NULL) {
+        fprintf(stderr, "Error opening the file.\n");
+        return 1;
+    }
+
+    edge *arr = (edge *)malloc(n * sizeof(edge));
+    if (arr == NULL) {
+        fprintf(stderr, "Memory allocation failed.\n");
+        fclose(file);
+        return 1;
+    }
+
+    for (int i = 0; i < n; i++) {
+        fscanf(file, "%d %d %d", &v1, &v2, &w);
+        arr[i].v1 = v1;
+        arr[i].v2 = v2;
+        arr[i].w = w;
+    }
+    fclose(file);
+
+    mergesort(arr, 0, n - 1); 
+
+    header **array = (header **)malloc(n * sizeof(header *));
+    if (array == NULL) {
+        fprintf(stderr, "Memory allocation failed.\n");
+        free(arr);
+        return 1;
+    }
+
+    for (int j = 0; j < n; j++)
+        array[j] = makeSet(j + 1);
+
+    int m_size = 0;
+    int totalWeight = 0; 
+    edge *m = (edge *)malloc((n - 1) * sizeof(edge));
+    if (m == NULL) {
+        fprintf(stderr, "Memory allocation failed.\n");
+        free(arr);
+        free(array);
+        return 1;
+    }
+
+    int i = 0;
+    while (m_size < n - 1 && i < n) {
+        if (array[arr[i].v1 - 1]->head->rep != array[arr[i].v2 - 1]->head->rep) {
+            m[m_size] = arr[i];
+            m_size++;
+            totalWeight += arr[i].w;
+            unionx(array[arr[i].v1 - 1], array[arr[i].v2 - 1]);
+        }
+        i++;
+    }
+
+    print(m, m_size, totalWeight); 
+
+    free(arr);
+    free(array);
+    free(m);
+    return 0;
+}
